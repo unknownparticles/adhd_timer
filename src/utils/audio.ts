@@ -49,11 +49,10 @@ if (typeof window !== "undefined") {
   window.addEventListener("keydown", unlock, { passive: true });
 }
 
-
 /**
  * Synthesizes a subtle, mechanical clock "tick" or "tock"
  */
-export function playTick(pitch: "tick" | "tock" = "tick") {
+export function playTick(pitch: "tick" | "tock" = "tick", volumeMultiplier: number = 0.8) {
   const ctx = getAudioContext();
   if (!ctx || ctx.state === "suspended") return;
 
@@ -63,11 +62,12 @@ export function playTick(pitch: "tick" | "tock" = "tick") {
   osc.connect(gainNode);
   gainNode.connect(ctx.destination);
 
-  // Very fast decay for crisp mechanical sound
+  // Fast decay for mechanical sound
   const freq = pitch === "tick" ? 1200 : 900;
   osc.frequency.setValueAtTime(freq, ctx.currentTime);
   
-  gainNode.gain.setValueAtTime(0.02, ctx.currentTime);
+  // Boosted base gain from 0.02 to 0.12
+  gainNode.gain.setValueAtTime(0.12 * volumeMultiplier, ctx.currentTime);
   gainNode.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.04);
 
   osc.start(ctx.currentTime);
@@ -75,89 +75,144 @@ export function playTick(pitch: "tick" | "tock" = "tick") {
 }
 
 /**
- * Synthesizes a beautiful Zen temple chime/bell
+ * Synthesizes a beautiful 5-note pentatonic/uplifting music box melody (C5 -> E5 -> G5 -> A5 -> C6)
  */
-export function playChime() {
+export function playChime(volumeMultiplier: number = 0.8) {
   const ctx = getAudioContext();
   if (!ctx || ctx.state === "suspended") return;
 
   const now = ctx.currentTime;
-  
-  // Layer multiple oscillators for a rich harmonic chime
-  const frequencies = [261.63, 329.63, 392.00, 523.25]; // C major chord harmonics
-  const volumes = [0.15, 0.1, 0.08, 0.05];
+  // C5 (523.25), E5 (659.25), G5 (783.99), A5 (880.00), C6 (1046.50)
+  const notes = [
+    { freq: 523.25, time: 0.0, dur: 0.8 },
+    { freq: 659.25, time: 0.16, dur: 0.8 },
+    { freq: 783.99, time: 0.32, dur: 0.8 },
+    { freq: 880.00, time: 0.48, dur: 0.8 },
+    { freq: 1046.50, time: 0.64, dur: 1.5 }
+  ];
 
-  frequencies.forEach((freq, index) => {
+  notes.forEach((note) => {
     const osc = ctx.createOscillator();
     const gainNode = ctx.createGain();
 
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(freq, now);
+    // Use triangle wave for warmer, music-box-like sound
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(note.freq, now + note.time);
 
     osc.connect(gainNode);
     gainNode.connect(ctx.destination);
 
-    // Deep chime with long release
-    const vol = volumes[index];
-    const duration = 2.5 - index * 0.4; // higher harmonics decay faster
+    // Boosted baseline volume coefficients
+    const maxGain = 0.28 * volumeMultiplier;
+    gainNode.gain.setValueAtTime(0.00001, now + note.time);
+    gainNode.gain.linearRampToValueAtTime(maxGain, now + note.time + 0.05);
+    gainNode.gain.setValueAtTime(maxGain, now + note.time + note.dur - 0.2);
+    gainNode.gain.exponentialRampToValueAtTime(0.00001, now + note.time + note.dur);
 
-    gainNode.gain.setValueAtTime(vol, now);
-    gainNode.gain.exponentialRampToValueAtTime(0.00001, now + duration);
-
-    osc.start(now);
-    osc.stop(now + duration + 0.1);
+    osc.start(now + note.time);
+    osc.stop(now + note.time + note.dur + 0.1);
   });
 }
 
 /**
- * Synthesizes a clean toggle/selection sweep
+ * Synthesizes a clean triple-note ascending melody for mode changes (G5 -> B5 -> D6)
  */
-export function playModeTrigger() {
+export function playModeTrigger(volumeMultiplier: number = 0.8) {
   const ctx = getAudioContext();
   if (!ctx || ctx.state === "suspended") return;
 
   const now = ctx.currentTime;
-  const osc = ctx.createOscillator();
-  const gainNode = ctx.createGain();
+  const notes = [
+    { freq: 783.99, time: 0.0, dur: 0.25 },  // G5
+    { freq: 987.77, time: 0.07, dur: 0.25 }, // B5
+    { freq: 1174.66, time: 0.14, dur: 0.4 }  // D6
+  ];
 
-  osc.type = "sine";
-  osc.frequency.setValueAtTime(440, now);
-  osc.frequency.exponentialRampToValueAtTime(880, now + 0.15);
+  notes.forEach((note) => {
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
 
-  osc.connect(gainNode);
-  gainNode.connect(ctx.destination);
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(note.freq, now + note.time);
 
-  gainNode.gain.setValueAtTime(0.05, now);
-  gainNode.gain.exponentialRampToValueAtTime(0.00001, now + 0.15);
+    osc.connect(gainNode);
+    gainNode.connect(ctx.destination);
 
-  osc.start(now);
-  osc.stop(now + 0.16);
+    // Boosted baseline volume from 0.05 to 0.2
+    const maxGain = 0.2 * volumeMultiplier;
+    gainNode.gain.setValueAtTime(0.00001, now + note.time);
+    gainNode.gain.linearRampToValueAtTime(maxGain, now + note.time + 0.02);
+    gainNode.gain.exponentialRampToValueAtTime(0.00001, now + note.time + note.dur);
+
+    osc.start(now + note.time);
+    osc.stop(now + note.time + note.dur + 0.05);
+  });
 }
 
 /**
- * Synthesizes a simple buzzer/alert if the user cancels or pauses
+ * Synthesizes a simple double-note rising melody for starting the timer (C5 -> E5)
  */
-export function playPauseBeep() {
+export function playStartMelody(volumeMultiplier: number = 0.8) {
   const ctx = getAudioContext();
   if (!ctx || ctx.state === "suspended") return;
 
   const now = ctx.currentTime;
-  const osc = ctx.createOscillator();
-  const gainNode = ctx.createGain();
+  const notes = [
+    { freq: 523.25, time: 0.0, dur: 0.22 }, // C5
+    { freq: 659.25, time: 0.08, dur: 0.35 } // E5
+  ];
 
-  osc.type = "sine";
-  osc.frequency.setValueAtTime(330, now);
-  osc.frequency.setValueAtTime(220, now + 0.1);
+  notes.forEach((note) => {
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
 
-  osc.connect(gainNode);
-  gainNode.connect(ctx.destination);
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(note.freq, now + note.time);
 
-  gainNode.gain.setValueAtTime(0.04, now);
-  gainNode.gain.setValueAtTime(0.04, now + 0.1);
-  gainNode.gain.exponentialRampToValueAtTime(0.00001, now + 0.2);
+    osc.connect(gainNode);
+    gainNode.connect(ctx.destination);
 
-  osc.start(now);
-  osc.stop(now + 0.22);
+    const maxGain = 0.2 * volumeMultiplier;
+    gainNode.gain.setValueAtTime(0.00001, now + note.time);
+    gainNode.gain.linearRampToValueAtTime(maxGain, now + note.time + 0.02);
+    gainNode.gain.exponentialRampToValueAtTime(0.00001, now + note.time + note.dur);
+
+    osc.start(now + note.time);
+    osc.stop(now + note.time + note.dur + 0.05);
+  });
+}
+
+/**
+ * Synthesizes a double-note descending melody for pausing the timer (E5 -> C5)
+ */
+export function playPauseBeep(volumeMultiplier: number = 0.8) {
+  const ctx = getAudioContext();
+  if (!ctx || ctx.state === "suspended") return;
+
+  const now = ctx.currentTime;
+  const notes = [
+    { freq: 659.25, time: 0.0, dur: 0.22 }, // E5
+    { freq: 523.25, time: 0.08, dur: 0.35 } // C5
+  ];
+
+  notes.forEach((note) => {
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(note.freq, now + note.time);
+
+    osc.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    const maxGain = 0.18 * volumeMultiplier;
+    gainNode.gain.setValueAtTime(0.00001, now + note.time);
+    gainNode.gain.linearRampToValueAtTime(maxGain, now + note.time + 0.02);
+    gainNode.gain.exponentialRampToValueAtTime(0.00001, now + note.time + note.dur);
+
+    osc.start(now + note.time);
+    osc.stop(now + note.time + note.dur + 0.05);
+  });
 }
 
 let lastCollisionSoundTime = 0;
@@ -166,7 +221,7 @@ let lastCollisionSoundTime = 0;
  * Synthesizes a subtle, organic "clack" or "click" sound of beads/particles colliding
  * @param intensity scale factor (0.0 to 1.0) based on impact velocity
  */
-export function playCollisionSound(intensity: number = 0.5) {
+export function playCollisionSound(intensity: number = 0.5, volumeMultiplier: number = 0.8) {
   const ctx = getAudioContext();
   if (!ctx || ctx.state === "suspended") return;
 
@@ -178,7 +233,6 @@ export function playCollisionSound(intensity: number = 0.5) {
   const osc = ctx.createOscillator();
   const gainNode = ctx.createGain();
 
-  // A higher frequency, woodblock-like short decay sound
   osc.type = "sine";
   
   // Randomize pitch slightly to make it sound organic and not repetitive
@@ -188,8 +242,8 @@ export function playCollisionSound(intensity: number = 0.5) {
   osc.connect(gainNode);
   gainNode.connect(ctx.destination);
 
-  // Keep volume very low and scale with intensity (impact velocity)
-  const vol = Math.min(0.015, intensity * 0.012);
+  // Boosted base gain from max 0.015 to 0.06
+  const vol = Math.min(0.06, intensity * 0.05) * volumeMultiplier;
   gainNode.gain.setValueAtTime(vol, now);
   // Extremely fast decay
   gainNode.gain.exponentialRampToValueAtTime(0.00001, now + 0.015);
@@ -197,4 +251,3 @@ export function playCollisionSound(intensity: number = 0.5) {
   osc.start(now);
   osc.stop(now + 0.02);
 }
-

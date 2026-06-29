@@ -8,7 +8,8 @@ import {
   SensorData
 } from "../types";
 import { COLOR_MAP } from "../constants";
-import { playTick, playChime, playModeTrigger, playPauseBeep } from "../utils/audio";
+import { playTick, playChime, playModeTrigger, playPauseBeep, playStartMelody } from "../utils/audio";
+import { triggerVibrate } from "../utils/vibration";
 import { GravityParticlesCanvas } from "./GravityParticlesCanvas";
 import { 
   Flame, 
@@ -63,12 +64,13 @@ export const GravityTimer: React.FC<GravityTimerProps> = ({
 
   const themeColors = COLOR_MAP[currentMode.color] || COLOR_MAP.rose;
 
-  // Track mode change and trigger audio feedback
+  // Track mode change and trigger audio/vibration feedback
   useEffect(() => {
     if (activeDirection && activeDirection !== previousDirectionRef.current) {
       if (settings.soundEnabled) {
-        playModeTrigger();
+        playModeTrigger(settings.volume);
       }
+      triggerVibrate(30, settings);
       
       // Reset timer to the new mode's duration
       const modeDuration = settings.modes[activeDirection].duration * 60;
@@ -77,7 +79,7 @@ export const GravityTimer: React.FC<GravityTimerProps> = ({
 
       previousDirectionRef.current = activeDirection;
     }
-  }, [activeDirection, settings.modes, setTimeLeft, setIsTimerRunning, settings.soundEnabled]);
+  }, [activeDirection, settings, setTimeLeft, setIsTimerRunning]);
 
   // Track face state change: FACE_DOWN -> starts timer, FACE_UP -> pauses timer
   useEffect(() => {
@@ -85,18 +87,23 @@ export const GravityTimer: React.FC<GravityTimerProps> = ({
       if (activeFaceState === DeviceFaceState.FACE_DOWN) {
         setIsTimerRunning(true);
         if (settings.soundEnabled && previousFaceStateRef.current === DeviceFaceState.FACE_UP) {
-          // Play starting tick/chime
-          playTick("tick");
+          playStartMelody(settings.volume);
+        }
+        if (previousFaceStateRef.current === DeviceFaceState.FACE_UP) {
+          triggerVibrate(100, settings);
         }
       } else if (activeFaceState === DeviceFaceState.FACE_UP) {
         setIsTimerRunning(false);
         if (settings.soundEnabled && previousFaceStateRef.current === DeviceFaceState.FACE_DOWN) {
-          playPauseBeep();
+          playPauseBeep(settings.volume);
+        }
+        if (previousFaceStateRef.current === DeviceFaceState.FACE_DOWN) {
+          triggerVibrate([50, 50, 50], settings);
         }
       }
       previousFaceStateRef.current = activeFaceState;
     }
-  }, [activeFaceState, setIsTimerRunning, settings.soundEnabled]);
+  }, [activeFaceState, setIsTimerRunning, settings]);
 
   // Handle active countdown logic
   useEffect(() => {
@@ -109,13 +116,13 @@ export const GravityTimer: React.FC<GravityTimerProps> = ({
           
           // Optional subtle tick sound on odd seconds for productivity feedback
           if (settings.soundEnabled && settings.tickingSoundEnabled && nextVal % 2 === 0) {
-            playTick(nextVal % 4 === 0 ? "tick" : "tock");
+            playTick(nextVal % 4 === 0 ? "tick" : "tock", settings.volume);
           }
 
           if (nextVal <= 0) {
             // Timer Finished!
             if (settings.soundEnabled) {
-              playChime();
+              playChime(settings.volume);
             }
             if (activeDirection) {
               addHistoryLog(
@@ -226,44 +233,29 @@ export const GravityTimer: React.FC<GravityTimerProps> = ({
       </div>
 
       {/* Main Gravity Circle Visualizer */}
-      <div className="relative flex-1 flex flex-col items-center justify-center py-2 md:py-6 w-full max-w-[340px] min-h-0 overflow-hidden">
-        <svg className="w-56 h-56 sm:w-64 sm:h-64 transform -rotate-90 select-none pointer-events-none shrink-0 z-10">
+      <div className="relative flex-1 flex flex-col items-center justify-center py-2 md:py-6 w-full max-w-[360px] min-h-0 overflow-hidden">
+        <svg 
+          viewBox="0 0 300 300"
+          className="w-72 h-72 sm:w-[340px] sm:h-[340px] transform -rotate-90 select-none pointer-events-none shrink-0 z-10"
+        >
           {/* Outer Track Circle */}
           <circle
-            cx="112"
-            cy="112"
-            r="92"
-            className="stroke-stone-100 fill-none sm:hidden"
-            strokeWidth="5"
-          />
-          <circle
-            cx="128"
-            cy="128"
-            r="105"
-            className="stroke-stone-100 fill-none hidden sm:block"
-            strokeWidth="5"
+            cx="150"
+            cy="150"
+            r="120"
+            className="stroke-stone-100 fill-none"
+            strokeWidth="6"
           />
 
           {/* Dynamic Progress Arc */}
           <motion.circle
-            cx="112"
-            cy="112"
-            r="92"
-            className="fill-none stroke-stone-800 sm:hidden"
-            strokeWidth="5"
-            strokeDasharray={2 * Math.PI * 92}
-            animate={{ strokeDashoffset: (2 * Math.PI * 92) - (progressPercentage / 100) * (2 * Math.PI * 92) }}
-            transition={{ type: "tween", ease: "easeInOut", duration: 0.5 }}
-            strokeLinecap="round"
-          />
-          <motion.circle
-            cx="128"
-            cy="128"
-            r="105"
-            className="fill-none stroke-stone-800 hidden sm:block"
-            strokeWidth="5"
-            strokeDasharray={2 * Math.PI * 105}
-            animate={{ strokeDashoffset: (2 * Math.PI * 105) - (progressPercentage / 100) * (2 * Math.PI * 105) }}
+            cx="150"
+            cy="150"
+            r="120"
+            className="fill-none stroke-stone-800"
+            strokeWidth="6"
+            strokeDasharray={2 * Math.PI * 120}
+            animate={{ strokeDashoffset: (2 * Math.PI * 120) - (progressPercentage / 100) * (2 * Math.PI * 120) }}
             transition={{ type: "tween", ease: "easeInOut", duration: 0.5 }}
             strokeLinecap="round"
           />
@@ -273,7 +265,7 @@ export const GravityTimer: React.FC<GravityTimerProps> = ({
         <GravityParticlesCanvas
           sensorData={sensorData}
           activeDirection={activeDirection}
-          soundEnabled={settings.soundEnabled}
+          settings={settings}
         />
 
         {/* Central Display overlay */}
@@ -337,10 +329,19 @@ export const GravityTimer: React.FC<GravityTimerProps> = ({
           </p>
         </div>
 
-        {/* Manual Overrides for testing and accessibility fallback */}
         <div className="flex justify-center items-center gap-3 mt-3 md:mt-4 pt-2 md:pt-3 border-t border-stone-100">
           <button
-            onClick={() => setIsTimerRunning(!isTimerRunning)}
+            onClick={() => {
+              const nextRunningState = !isTimerRunning;
+              setIsTimerRunning(nextRunningState);
+              if (nextRunningState) {
+                if (settings.soundEnabled) playStartMelody(settings.volume);
+                triggerVibrate(100, settings);
+              } else {
+                if (settings.soundEnabled) playPauseBeep(settings.volume);
+                triggerVibrate([50, 50, 50], settings);
+              }
+            }}
             className={`flex items-center gap-1.5 py-1.5 px-3.5 rounded-xl text-xs font-semibold transition-all border ${
               isTimerRunning 
                 ? "bg-white hover:bg-stone-50 text-stone-700 border-stone-200"
@@ -355,6 +356,7 @@ export const GravityTimer: React.FC<GravityTimerProps> = ({
             onClick={() => {
               setTimeLeft(currentMode.duration * 60);
               setIsTimerRunning(false);
+              triggerVibrate(40, settings);
             }}
             className="flex items-center gap-1.5 py-1.5 px-3.5 rounded-xl text-xs font-semibold bg-stone-100 hover:bg-stone-200 text-stone-700 transition-all border border-transparent"
           >

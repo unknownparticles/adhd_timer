@@ -162,7 +162,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
               <span className="text-[10px] sm:text-[11px] text-stone-700 font-bold">音效铃声反馈</span>
-              <span className="text-[8px] sm:text-[9px] text-stone-400">开启转换和计时结束提示音</span>
+              <span className="text-[8px] sm:text-[9px] text-stone-400">开启转换和计时结束提示旋律</span>
             </div>
             <button
               onClick={() => setSettings(prev => ({ ...prev, soundEnabled: !prev.soundEnabled }))}
@@ -174,11 +174,30 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             </button>
           </div>
 
+          {/* Volume Slider - show when soundEnabled is true */}
+          {settings.soundEnabled && (
+            <div className="flex flex-col gap-1 pl-2 py-1 border-l-2 border-stone-200 ml-1.5 mt-0.5 mb-1.5 transition-all">
+              <div className="flex justify-between text-[9px] text-stone-500 font-medium">
+                <span>音量调节</span>
+                <span>{Math.round((settings.volume ?? 0.8) * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={settings.volume ?? 0.8}
+                onChange={(e) => setSettings(prev => ({ ...prev, volume: parseFloat(e.target.value) }))}
+                className="w-full h-1 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-stone-800"
+              />
+            </div>
+          )}
+
           {/* Vibration Toggle */}
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
               <span className="text-[10px] sm:text-[11px] text-stone-700 font-bold">物理触觉震动</span>
-              <span className="text-[8px] sm:text-[9px] text-stone-400">计时结束时提供震动反馈</span>
+              <span className="text-[8px] sm:text-[9px] text-stone-400">开始、暂停、计时结束时提供震动反馈</span>
             </div>
             <button
               onClick={() => setSettings(prev => ({ ...prev, vibrationEnabled: !prev.vibrationEnabled }))}

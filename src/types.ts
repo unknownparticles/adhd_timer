@@ -45,4 +45,5 @@ export interface AppSettings {
   tickingSoundEnabled: boolean;
   autoSaveEnabled: boolean;
   modes: Record<TimerDirection, TimerModeConfig>;
+  volume: number;
 }

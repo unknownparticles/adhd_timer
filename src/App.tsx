@@ -18,6 +18,7 @@ import { HistoryStats } from "./components/HistoryStats";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { classifyDeviceState } from "./utils/gravity";
 import { resumeAudio } from "./utils/audio";
+import { triggerVibrate } from "./utils/vibration";
 import { 
   Timer as TimerIcon, 
   BarChart3, 
@@ -187,10 +188,8 @@ export default function App() {
     setHistoryLogs((prev) => [newLog, ...prev]);
 
     // Optional physical device vibration feedback
-    if (settings.vibrationEnabled && typeof navigator !== "undefined" && navigator.vibrate) {
-      navigator.vibrate([200, 100, 200]);
-    }
-  }, [settings.vibrationEnabled]);
+    triggerVibrate([400, 200, 400, 200, 400], settings);
+  }, [settings]);
 
   const clearHistory = () => {
     setHistoryLogs([]);
@@ -209,7 +208,7 @@ export default function App() {
     <div className="h-screen h-[100dvh] flex flex-col bg-[#FDFBF7] text-stone-800 font-sans overflow-hidden">
       
       {/* 1. Header Navigation - Ultra Minimalist & Compact */}
-      <header className="border-b border-stone-200/50 bg-[#FDFBF7]/90 backdrop-blur-md sticky top-0 z-40 px-4 py-2.5">
+      <header className="border-b border-stone-200/50 bg-[#FDFBF7]/90 backdrop-blur-md sticky top-0 z-40 px-4 py-2.5 pt-safe-top">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
             <TimerIcon className="w-4 h-4 text-stone-800" />

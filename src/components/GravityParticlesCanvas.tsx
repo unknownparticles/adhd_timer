@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
-import { SensorData, TimerDirection } from "../types";
+import { SensorData, TimerDirection, AppSettings } from "../types";
 import { playCollisionSound } from "../utils/audio";
 
 interface GravityParticlesCanvasProps {
   sensorData: SensorData;
   activeDirection: TimerDirection | null;
-  soundEnabled?: boolean;
+  settings: AppSettings;
 }
 
 interface Particle {
@@ -30,7 +30,7 @@ const MODE_COLORS: Record<TimerDirection, string[]> = {
 export const GravityParticlesCanvas: React.FC<GravityParticlesCanvasProps> = ({
   sensorData,
   activeDirection,
-  soundEnabled = true,
+  settings,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const particlesRef = useRef<Particle[]>([]);
@@ -206,8 +206,8 @@ export const GravityParticlesCanvas: React.FC<GravityParticlesCanvasProps> = ({
               p2.vy += impulse * p1.mass * ny * elasticity;
 
               // Play collision sound on substantial relative movement
-              if (soundEnabled && vn > 0.2) {
-                playCollisionSound(vn);
+              if (settings.soundEnabled && vn > 0.2) {
+                playCollisionSound(vn, settings.volume);
               }
             }
           }
@@ -235,8 +235,8 @@ export const GravityParticlesCanvas: React.FC<GravityParticlesCanvasProps> = ({
           p.vy = (p.vy - 2 * dot * ny) * elasticity;
 
           // Play collision sound on wall bounce
-          if (soundEnabled && dot > 0.2) {
-            playCollisionSound(dot);
+          if (settings.soundEnabled && dot > 0.2) {
+            playCollisionSound(dot, settings.volume);
           }
         }
       });
@@ -324,7 +324,7 @@ export const GravityParticlesCanvas: React.FC<GravityParticlesCanvasProps> = ({
       onTouchMove={handleTouchMove}
       onMouseLeave={handleMouseLeave}
       onTouchEnd={handleMouseLeave}
-      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-56 h-56 sm:w-64 sm:h-64 cursor-grab active:cursor-grabbing z-0 pointer-events-auto"
+      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 sm:w-[340px] sm:h-[340px] cursor-grab active:cursor-grabbing z-0 pointer-events-auto"
     />
   );
 };

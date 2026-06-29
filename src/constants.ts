@@ -8,6 +8,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   soundEnabled: true,
   tickingSoundEnabled: false,
   autoSaveEnabled: true,
+  volume: 0.8,
   modes: {
     [TimerDirection.PORTRAIT_UP]: {
       id: TimerDirection.PORTRAIT_UP,

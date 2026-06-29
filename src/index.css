@@ -1,1 +1,14 @@
 @import "tailwindcss";
+
+.pb-safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+.pt-safe-top {
+  padding-top: env(safe-area-inset-top, 16px);
+}
+.mb-safe-bottom {
+  margin-bottom: env(safe-area-inset-bottom, 16px);
+}
+.mt-safe-top {
+  margin-top: env(safe-area-inset-top, 16px);
+}
