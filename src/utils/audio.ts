@@ -21,6 +21,35 @@ export function resumeAudio(): Promise<void> {
   return Promise.resolve();
 }
 
+// Automatically attempt to unlock AudioContext on first user interaction to bypass browser autoplay restrictions.
+if (typeof window !== "undefined") {
+  const unlock = () => {
+    const ctx = getAudioContext();
+    if (ctx) {
+      if (ctx.state === "suspended") {
+        ctx.resume().then(() => {
+          removeListeners();
+        }).catch((err) => {
+          console.warn("Failed to resume AudioContext:", err);
+        });
+      } else {
+        removeListeners();
+      }
+    }
+  };
+
+  const removeListeners = () => {
+    window.removeEventListener("click", unlock);
+    window.removeEventListener("touchstart", unlock);
+    window.removeEventListener("keydown", unlock);
+  };
+
+  window.addEventListener("click", unlock, { passive: true });
+  window.addEventListener("touchstart", unlock, { passive: true });
+  window.addEventListener("keydown", unlock, { passive: true });
+}
+
+
 /**
  * Synthesizes a subtle, mechanical clock "tick" or "tock"
  */
