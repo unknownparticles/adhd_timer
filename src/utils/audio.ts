@@ -159,3 +159,42 @@ export function playPauseBeep() {
   osc.start(now);
   osc.stop(now + 0.22);
 }
+
+let lastCollisionSoundTime = 0;
+
+/**
+ * Synthesizes a subtle, organic "clack" or "click" sound of beads/particles colliding
+ * @param intensity scale factor (0.0 to 1.0) based on impact velocity
+ */
+export function playCollisionSound(intensity: number = 0.5) {
+  const ctx = getAudioContext();
+  if (!ctx || ctx.state === "suspended") return;
+
+  const now = ctx.currentTime;
+  // Throttle to maximum one collision sound per 40ms to avoid audio overload or harsh noise
+  if (now - lastCollisionSoundTime < 0.04) return;
+  lastCollisionSoundTime = now;
+
+  const osc = ctx.createOscillator();
+  const gainNode = ctx.createGain();
+
+  // A higher frequency, woodblock-like short decay sound
+  osc.type = "sine";
+  
+  // Randomize pitch slightly to make it sound organic and not repetitive
+  const freq = 1000 + Math.random() * 500;
+  osc.frequency.setValueAtTime(freq, now);
+
+  osc.connect(gainNode);
+  gainNode.connect(ctx.destination);
+
+  // Keep volume very low and scale with intensity (impact velocity)
+  const vol = Math.min(0.015, intensity * 0.012);
+  gainNode.gain.setValueAtTime(vol, now);
+  // Extremely fast decay
+  gainNode.gain.exponentialRampToValueAtTime(0.00001, now + 0.015);
+
+  osc.start(now);
+  osc.stop(now + 0.02);
+}
+

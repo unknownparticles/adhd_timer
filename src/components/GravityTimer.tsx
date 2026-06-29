@@ -273,6 +273,7 @@ export const GravityTimer: React.FC<GravityTimerProps> = ({
         <GravityParticlesCanvas
           sensorData={sensorData}
           activeDirection={activeDirection}
+          soundEnabled={settings.soundEnabled}
         />
 
         {/* Central Display overlay */}
