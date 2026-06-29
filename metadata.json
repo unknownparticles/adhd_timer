@@ -1,0 +1,1 @@
+{"name":"Gravity Timer","description":"A responsive PWA Gravity Timer utilizing mobile device sensors (tilt in 4 directions for different modes, face-down to start, face-up to pause) and an interactive 3D simulator for desktop users.","requestFramePermissions":[],"majorCapabilities":["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]}
