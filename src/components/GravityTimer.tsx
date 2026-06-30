@@ -23,7 +23,8 @@ import {
   VolumeX,
   Compass,
   ArrowDownCircle,
-  HelpCircle
+  HelpCircle,
+  Sparkles
 } from "lucide-react";
 
 interface GravityTimerProps {
@@ -39,6 +40,7 @@ interface GravityTimerProps {
   requestSensorPermissions: () => void;
   sensorPermissionState: "prompt" | "granted" | "denied" | "unsupported";
   sensorData: SensorData;
+  isEasterEggActive?: boolean;
 }
 
 export const GravityTimer: React.FC<GravityTimerProps> = ({
@@ -54,6 +56,7 @@ export const GravityTimer: React.FC<GravityTimerProps> = ({
   requestSensorPermissions,
   sensorPermissionState,
   sensorData,
+  isEasterEggActive = false,
 }) => {
   const previousDirectionRef = useRef<TimerDirection | null>(null);
   const previousFaceStateRef = useRef<DeviceFaceState | null>(null);
@@ -266,36 +269,71 @@ export const GravityTimer: React.FC<GravityTimerProps> = ({
           sensorData={sensorData}
           activeDirection={activeDirection}
           settings={settings}
+          isEasterEggActive={isEasterEggActive}
         />
 
         {/* Central Display overlay */}
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 sm:p-8 select-none pointer-events-none z-20">
           <AnimatePresence mode="wait">
-            <motion.div
-              key={currentMode.id}
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.97, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="flex flex-col items-center gap-0.5 sm:gap-1"
-            >
-              <div className="p-1.5 rounded-lg bg-stone-100 text-stone-800 border border-stone-200/60 shadow-none">
-                {renderModeIcon(currentMode.iconName, "w-3.5 h-3.5")}
-              </div>
-              <h3 className="text-[10px] font-bold text-stone-500 mt-1 uppercase tracking-wider">
-                {currentMode.label}
-              </h3>
-            </motion.div>
+            {isEasterEggActive ? (
+              <motion.div
+                key="easter-egg-title"
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: [1, 1.15, 1], rotate: [-3, 3, -3], opacity: 1 }}
+                transition={{ 
+                  scale: { repeat: Infinity, duration: 0.6, ease: "easeInOut" },
+                  rotate: { repeat: Infinity, duration: 0.8, ease: "easeInOut" }
+                }}
+                className="flex flex-col items-center gap-1"
+              >
+                <div className="p-1 rounded-lg bg-gradient-to-r from-red-500 via-pink-500 to-purple-500 text-white shadow-sm">
+                  <Sparkles className="w-3.5 h-3.5 animate-spin" style={{ animationDuration: '4s' }} />
+                </div>
+                <span className="text-[11px] font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-purple-500 to-blue-500 uppercase filter drop-shadow-sm block">
+                  ✨ SHAKE IT OFF! ✨
+                </span>
+              </motion.div>
+            ) : (
+              <motion.div
+                key={currentMode.id}
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.97, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="flex flex-col items-center gap-0.5 sm:gap-1"
+              >
+                <div className="p-1.5 rounded-lg bg-stone-100 text-stone-800 border border-stone-200/60 shadow-none">
+                  {renderModeIcon(currentMode.iconName, "w-3.5 h-3.5")}
+                </div>
+                <h3 className="text-[10px] font-bold text-stone-500 mt-1 uppercase tracking-wider">
+                  {currentMode.label}
+                </h3>
+              </motion.div>
+            )}
           </AnimatePresence>
 
           {/* Countdown Clock Face */}
-          <span className="text-3xl sm:text-4xl font-black font-mono tracking-tight text-stone-900 my-1.5 sm:my-2.5">
-            {formattedMinutes}:{formattedSeconds}
-          </span>
+          {isEasterEggActive ? (
+            <motion.span
+              animate={{ scale: [1, 1.06, 1], y: [0, -2, 0] }}
+              transition={{ repeat: Infinity, duration: 0.38, ease: "easeInOut" }}
+              className="text-3xl sm:text-4xl font-black font-mono tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-blue-500 to-purple-500 my-1.5 sm:my-2.5"
+            >
+              {formattedMinutes}:{formattedSeconds}
+            </motion.span>
+          ) : (
+            <span className="text-3xl sm:text-4xl font-black font-mono tracking-tight text-stone-900 my-1.5 sm:my-2.5">
+              {formattedMinutes}:{formattedSeconds}
+            </span>
+          )}
 
           {/* Device Face Feedback Statement */}
           <div className="h-5">
-            {activeFaceState === DeviceFaceState.FACE_DOWN ? (
+            {isEasterEggActive ? (
+              <span className="text-[10px] text-purple-600 font-bold animate-pulse">
+                🤪 压力消散中... 呼~
+              </span>
+            ) : activeFaceState === DeviceFaceState.FACE_DOWN ? (
               <span className="text-[10px] text-stone-600 font-bold flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-stone-800 animate-ping" />
                 正在计时中...

@@ -26,6 +26,8 @@ interface PhoneSimulatorProps {
   timeLeft: number;
   formattedTime: string;
   isTimerRunning: boolean;
+  isEasterEggActive?: boolean;
+  onHeavyShake?: () => void;
 }
 
 export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({
@@ -36,6 +38,8 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({
   modes,
   formattedTime,
   isTimerRunning,
+  isEasterEggActive = false,
+  onHeavyShake,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -106,6 +110,60 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({
     return { rotateX: beta, rotateY: gamma, rotateZ: 0 };
   };
 
+  // Dynamic shake animations overlay when Easter Egg is active
+  const get3DAnimationProps = () => {
+    const baseRotation = get3DRotation();
+    if (isEasterEggActive) {
+      return {
+        ...baseRotation,
+        x: [0, -10, 10, -8, 8, -5, 5, -2, 2, 0],
+        y: [0, 8, -8, 5, -5, 3, -3, 1, -1, 0],
+        rotateX: [
+          baseRotation.rotateX,
+          baseRotation.rotateX - 12,
+          baseRotation.rotateX + 12,
+          baseRotation.rotateX - 8,
+          baseRotation.rotateX + 8,
+          baseRotation.rotateX - 4,
+          baseRotation.rotateX + 4,
+          baseRotation.rotateX,
+        ],
+        rotateY: [
+          baseRotation.rotateY,
+          baseRotation.rotateY + 10,
+          baseRotation.rotateY - 10,
+          baseRotation.rotateY + 6,
+          baseRotation.rotateY - 6,
+          baseRotation.rotateY,
+        ],
+        rotateZ: [
+          baseRotation.rotateZ,
+          baseRotation.rotateZ - 12,
+          baseRotation.rotateZ + 12,
+          baseRotation.rotateZ - 8,
+          baseRotation.rotateZ + 8,
+          baseRotation.rotateZ - 4,
+          baseRotation.rotateZ + 4,
+          baseRotation.rotateZ,
+        ],
+      };
+    }
+    return baseRotation;
+  };
+
+  const getTransition = () => {
+    if (isEasterEggActive) {
+      return {
+        x: { repeat: Infinity, duration: 0.22, ease: "easeInOut" },
+        y: { repeat: Infinity, duration: 0.25, ease: "easeInOut" },
+        rotateX: { repeat: Infinity, duration: 0.2, ease: "linear" },
+        rotateY: { repeat: Infinity, duration: 0.18, ease: "linear" },
+        rotateZ: { repeat: Infinity, duration: 0.24, ease: "linear" },
+      };
+    }
+    return { type: "spring", stiffness: 90, damping: 20 };
+  };
+
   const currentMode = activeDirection ? modes[activeDirection] : null;
 
   return (
@@ -138,8 +196,8 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({
 
         {/* 3D Phone Body */}
         <motion.div
-          animate={get3DRotation()}
-          transition={{ type: "spring", stiffness: 90, damping: 20 }}
+          animate={get3DAnimationProps()}
+          transition={getTransition()}
           className="relative w-28 h-56 sm:w-36 sm:h-72 rounded-[20px] sm:rounded-[24px] shadow-lg cursor-grab active:cursor-grabbing preserve-3d"
           style={{ transformStyle: "preserve-3d" }}
         >
@@ -265,6 +323,30 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({
         <span className="text-[10px] sm:text-[11px] font-bold text-stone-500 block px-1">
           状态预设（点击模拟旋转）：
         </span>
+
+        {/* Heavy Shake Easter Egg Button */}
+        {onHeavyShake && (
+          <button
+            onClick={onHeavyShake}
+            disabled={isEasterEggActive}
+            className={`w-full py-1.5 px-3 rounded-xl border text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer ${
+              isEasterEggActive
+                ? "bg-gradient-to-r from-red-500 via-purple-500 to-blue-500 text-white border-transparent"
+                : "bg-white hover:bg-stone-50 text-stone-850 border-stone-200 hover:border-stone-300"
+            }`}
+          >
+            {isEasterEggActive ? (
+              <>
+                <Sparkles className="w-3.5 h-3.5 animate-spin" />
+                <span>解压彩蛋进行中！</span>
+              </>
+            ) : (
+              <>
+                <span>💥 暴力摇晃测试 (Easter Egg)</span>
+              </>
+            )}
+          </button>
+        )}
 
         <div className="grid grid-cols-2 gap-2">
           {/* Flat States */}

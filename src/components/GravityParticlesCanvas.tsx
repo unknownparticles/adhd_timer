@@ -6,6 +6,7 @@ interface GravityParticlesCanvasProps {
   sensorData: SensorData;
   activeDirection: TimerDirection | null;
   settings: AppSettings;
+  isEasterEggActive?: boolean;
 }
 
 interface Particle {
@@ -17,6 +18,17 @@ interface Particle {
   mass: number;
   baseColor: string;
   color: string;
+}
+
+interface Sparkle {
+  id: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  color: string;
+  life: number; // 1.0 to 0.0
+  size: number;
 }
 
 // Color schemes per timer mode to create adaptive visual themes
@@ -31,11 +43,14 @@ export const GravityParticlesCanvas: React.FC<GravityParticlesCanvasProps> = ({
   sensorData,
   activeDirection,
   settings,
+  isEasterEggActive = false,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const particlesRef = useRef<Particle[]>([]);
+  const sparklesRef = useRef<Sparkle[]>([]);
   const requestRef = useRef<number | null>(null);
   const activeDirectionRef = useRef<TimerDirection | null>(null);
+  const prevEasterEggRef = useRef<boolean>(false);
 
   // Mouse/Touch tracking for interactive scattering
   const [mouse, setMouse] = useState<{ x: number; y: number; active: boolean }>({
@@ -109,8 +124,50 @@ export const GravityParticlesCanvas: React.FC<GravityParticlesCanvasProps> = ({
     });
   }, [activeDirection]);
 
+  // Monitor Easter Egg trigger to apply high velocities and neon rainbow colors
+  useEffect(() => {
+    if (isEasterEggActive && !prevEasterEggRef.current) {
+      // Explode beads outward with high velocity
+      particlesRef.current.forEach((p) => {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 12 + Math.random() * 8; // High speed impulse
+        p.vx = Math.cos(angle) * speed;
+        p.vy = Math.sin(angle) * speed;
+        
+        // Transform into neon rainbow color palette
+        const neonColors = ["#FF0055", "#00FFCC", "#FFFF00", "#FF00FF", "#00FF00", "#FF9900", "#00CCFF"];
+        p.color = neonColors[Math.floor(Math.random() * neonColors.length)];
+      });
+    } else if (!isEasterEggActive && prevEasterEggRef.current) {
+      // Revert colors smoothly to standard theme
+      const currentMode = activeDirection || TimerDirection.PORTRAIT_UP;
+      const targetColors = MODE_COLORS[currentMode];
+      particlesRef.current.forEach((p) => {
+        p.color = p.baseColor;
+      });
+    }
+    prevEasterEggRef.current = isEasterEggActive;
+  }, [isEasterEggActive, activeDirection]);
+
   // Main physics & animation loop
   useEffect(() => {
+    const spawnSparkle = (x: number, y: number, color: string) => {
+      if (sparklesRef.current.length > 80) return;
+      const count = 2 + Math.floor(Math.random() * 2);
+      for (let k = 0; k < count; k++) {
+        sparklesRef.current.push({
+          id: Math.random(),
+          x,
+          y,
+          vx: (Math.random() - 0.5) * 6,
+          vy: (Math.random() - 0.5) * 6,
+          color,
+          life: 1.0,
+          size: 1.5 + Math.random() * 2.5
+        });
+      }
+    };
+
     const animate = () => {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -132,12 +189,13 @@ export const GravityParticlesCanvas: React.FC<GravityParticlesCanvasProps> = ({
       // Calculate gravity strength based on phone tilts
       // ax controls horizontal gravity (gamma/roll), ay controls vertical gravity (beta/pitch)
       const gravityFactor = 0.15; // Tuning sensitivity
-      const ax = Math.sin((clampedGamma * Math.PI) / 180) * gravityFactor;
-      const ay = Math.sin((clampedBeta * Math.PI) / 180) * gravityFactor;
+      // Ignore normal gravity in Easter Egg mode (weightlessness Chaos)
+      const ax = isEasterEggActive ? 0 : Math.sin((clampedGamma * Math.PI) / 180) * gravityFactor;
+      const ay = isEasterEggActive ? 0 : Math.sin((clampedBeta * Math.PI) / 180) * gravityFactor;
 
       const particles = particlesRef.current;
-      const damping = 0.97; // Surface friction / air resistance
-      const elasticity = 0.45; // Rebound elasticity
+      const damping = isEasterEggActive ? 0.985 : 0.97; // Surface friction / air resistance
+      const elasticity = isEasterEggActive ? 0.92 : 0.45; // Rebound elasticity
 
       // 1. Update Positions, apply gravity and mouse forces
       particles.forEach((p) => {
@@ -209,6 +267,11 @@ export const GravityParticlesCanvas: React.FC<GravityParticlesCanvasProps> = ({
               if (settings.soundEnabled && vn > 0.2) {
                 playCollisionSound(vn, settings.volume);
               }
+
+              // Spawn Easter Egg sparkles
+              if (isEasterEggActive && vn > 0.2) {
+                spawnSparkle((p1.x + p2.x) / 2, (p1.y + p2.y) / 2, p1.color);
+              }
             }
           }
         }
@@ -238,11 +301,47 @@ export const GravityParticlesCanvas: React.FC<GravityParticlesCanvasProps> = ({
           if (settings.soundEnabled && dot > 0.2) {
             playCollisionSound(dot, settings.volume);
           }
+
+          // Spawn Easter Egg sparkles
+          if (isEasterEggActive && dot > 0.2) {
+            spawnSparkle(p.x, p.y, p.color);
+          }
         }
       });
 
+      // 3.5. Update and Render Sparkles
+      if (sparklesRef.current.length > 0) {
+        sparklesRef.current = sparklesRef.current.filter((s) => {
+          s.x += s.vx;
+          s.y += s.vy;
+          s.vx *= 0.96;
+          s.vy *= 0.96;
+          s.life -= 0.035;
+
+          if (s.life > 0) {
+            ctx.save();
+            ctx.globalAlpha = s.life;
+            ctx.fillStyle = s.color;
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = s.color;
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+            return true;
+          }
+          return false;
+        });
+      }
+
       // 4. Render Particles to Canvas
       particles.forEach((p) => {
+        ctx.save();
+        if (isEasterEggActive) {
+          ctx.shadowBlur = 14;
+          ctx.shadowColor = p.color;
+        }
+
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
         
@@ -263,9 +362,10 @@ export const GravityParticlesCanvas: React.FC<GravityParticlesCanvasProps> = ({
         ctx.fill();
         
         // Very subtle outline
-        ctx.strokeStyle = "rgba(28, 25, 23, 0.1)";
+        ctx.strokeStyle = isEasterEggActive ? "rgba(255, 255, 255, 0.45)" : "rgba(28, 25, 23, 0.1)";
         ctx.lineWidth = 0.5;
         ctx.stroke();
+        ctx.restore();
       });
 
       // Request next frame
@@ -279,7 +379,7 @@ export const GravityParticlesCanvas: React.FC<GravityParticlesCanvasProps> = ({
         cancelAnimationFrame(requestRef.current);
       }
     };
-  }, [sensorData, mouse]);
+  }, [sensorData, mouse, isEasterEggActive]);
 
   // Handle mouse events to trigger repulsion interaction
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   TimerDirection, 
@@ -17,7 +17,7 @@ import { GravityTimer } from "./components/GravityTimer";
 import { HistoryStats } from "./components/HistoryStats";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { classifyDeviceState } from "./utils/gravity";
-import { resumeAudio } from "./utils/audio";
+import { resumeAudio, playEasterEggSound } from "./utils/audio";
 import { triggerVibrate } from "./utils/vibration";
 import { 
   Timer as TimerIcon, 
@@ -84,6 +84,28 @@ export default function App() {
   // 5. Mobile Tab State ("timer" | "simulator" | "stats" | "settings")
   const [activeTab, setActiveTab] = useState<"timer" | "simulator" | "stats" | "settings">("timer");
 
+  // 6. Easter Egg State
+  const [isEasterEggActive, setIsEasterEggActive] = useState<boolean>(false);
+  const lastEasterEggTimeRef = useRef<number>(0);
+
+  const triggerEasterEgg = useCallback(() => {
+    const now = Date.now();
+    // 4 seconds cooldown to prevent overlapping audio/vibrations
+    if (now - lastEasterEggTimeRef.current < 4000) return;
+    lastEasterEggTimeRef.current = now;
+
+    setIsEasterEggActive(true);
+    if (settings.soundEnabled) {
+      playEasterEggSound(settings.volume);
+    }
+    triggerVibrate([100, 50, 100, 50, 250, 80, 250], settings);
+
+    // 3.5 seconds duration for the easter egg simulation
+    setTimeout(() => {
+      setIsEasterEggActive(false);
+    }, 3500);
+  }, [settings]);
+
   // Save settings when changed
   useEffect(() => {
     localStorage.setItem(LOCAL_STORAGE_SETTINGS_KEY, JSON.stringify(settings));
@@ -100,6 +122,20 @@ export default function App() {
     await resumeAudio();
 
     const DeviceOrientationEventClass = (window as any).DeviceOrientationEvent;
+    const DeviceMotionEventClass = (window as any).DeviceMotionEvent;
+
+    // Request motion permission if available (specifically iOS)
+    if (
+      DeviceMotionEventClass &&
+      typeof DeviceMotionEventClass.requestPermission === "function"
+    ) {
+      try {
+        await DeviceMotionEventClass.requestPermission();
+      } catch (e) {
+        console.warn("Motion permission request failed:", e);
+      }
+    }
+
     if (
       DeviceOrientationEventClass && 
       typeof DeviceOrientationEventClass.requestPermission === "function"
@@ -155,6 +191,48 @@ export default function App() {
       window.removeEventListener("deviceorientation", handleOrientation);
     };
   }, [sensorData.usingSimulator]);
+
+  // Real-time motion detection for physical heavy shake
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (sensorData.usingSimulator) return;
+
+    let lastX = 0, lastY = 0, lastZ = 0;
+    let lastUpdate = 0;
+    const SHAKE_THRESHOLD = 26; // Acceleration variation threshold
+
+    const handleMotion = (e: DeviceMotionEvent) => {
+      const accel = e.acceleration || e.accelerationIncludingGravity;
+      if (!accel) return;
+
+      const x = accel.x ?? 0;
+      const y = accel.y ?? 0;
+      const z = accel.z ?? 0;
+
+      const curTime = Date.now();
+      if ((curTime - lastUpdate) > 100) {
+        const diffTime = curTime - lastUpdate;
+        lastUpdate = curTime;
+
+        const accelerationForce = Math.sqrt(x * x + y * y + z * z);
+        const delta = Math.abs(x + y + z - lastX - lastY - lastZ) / diffTime * 10000;
+        
+        // Trigger if either delta or magnitude is very high (heavy shake)
+        if (delta > SHAKE_THRESHOLD || accelerationForce > 26) {
+          triggerEasterEgg();
+        }
+
+        lastX = x;
+        lastY = y;
+        lastZ = z;
+      }
+    };
+
+    window.addEventListener("devicemotion", handleMotion);
+    return () => {
+      window.removeEventListener("devicemotion", handleMotion);
+    };
+  }, [sensorData.usingSimulator, triggerEasterEgg]);
 
   // Dynamically map alpha, beta, gamma to logical Gravity states (Direction & FaceState)
   useEffect(() => {
@@ -260,6 +338,8 @@ export default function App() {
               timeLeft={timeLeft}
               formattedTime={formattedTime}
               isTimerRunning={isTimerRunning}
+              isEasterEggActive={isEasterEggActive}
+              onHeavyShake={triggerEasterEgg}
             />
           </section>
 
@@ -278,6 +358,7 @@ export default function App() {
               requestSensorPermissions={requestSensorPermissions}
               sensorPermissionState={sensorPermissionState}
               sensorData={sensorData}
+              isEasterEggActive={isEasterEggActive}
             />
           </section>
 
@@ -352,6 +433,7 @@ export default function App() {
                   requestSensorPermissions={requestSensorPermissions}
                   sensorPermissionState={sensorPermissionState}
                   sensorData={sensorData}
+                  isEasterEggActive={isEasterEggActive}
                 />
               )}
 
@@ -365,6 +447,8 @@ export default function App() {
                   timeLeft={timeLeft}
                   formattedTime={formattedTime}
                   isTimerRunning={isTimerRunning}
+                  isEasterEggActive={isEasterEggActive}
+                  onHeavyShake={triggerEasterEgg}
                 />
               )}
 

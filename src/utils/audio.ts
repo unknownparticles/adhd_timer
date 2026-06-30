@@ -251,3 +251,38 @@ export function playCollisionSound(intensity: number = 0.5, volumeMultiplier: nu
   osc.start(now);
   osc.stop(now + 0.02);
 }
+
+/**
+ * Synthesizes a magical, sparkling easter egg sound (rapid arpeggio + sweeping pitch)
+ */
+export function playEasterEggSound(volumeMultiplier: number = 0.8) {
+  const ctx = getAudioContext();
+  if (!ctx || ctx.state === "suspended") return;
+
+  const now = ctx.currentTime;
+  const freqs = [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98, 2093.00]; // C5 -> E5 -> G5 -> C6 -> E6 -> G6 -> C7
+
+  freqs.forEach((freq, idx) => {
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    const noteTime = now + idx * 0.06;
+    const noteDuration = 0.4;
+
+    // Use triangle wave for magical chime timbre
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(freq, noteTime);
+    osc.frequency.exponentialRampToValueAtTime(freq * 1.15, noteTime + noteDuration);
+
+    osc.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    const maxGain = 0.12 * volumeMultiplier;
+    gainNode.gain.setValueAtTime(0.00001, noteTime);
+    gainNode.gain.linearRampToValueAtTime(maxGain, noteTime + 0.02);
+    gainNode.gain.exponentialRampToValueAtTime(0.00001, noteTime + noteDuration);
+
+    osc.start(noteTime);
+    osc.stop(noteTime + noteDuration + 0.05);
+  });
+}
+
