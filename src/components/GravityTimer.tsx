@@ -8,7 +8,8 @@ import {
   SensorData
 } from "../types";
 import { COLOR_MAP } from "../constants";
-import { playTick, playChime, playModeTrigger, playPauseBeep, playStartMelody } from "../utils/audio";
+import { playRegularReminder, playEndMelody, playModeTrigger, playPauseBeep, playStartMelody } from "../utils/audio";
+import { shouldPlayRegularReminder } from "../utils/timerReminder";
 import { triggerVibrate } from "../utils/vibration";
 import { GravityParticlesCanvas } from "./GravityParticlesCanvas";
 import { 
@@ -64,6 +65,7 @@ export const GravityTimer: React.FC<GravityTimerProps> = ({
   const currentMode: TimerModeConfig = activeDirection 
     ? settings.modes[activeDirection] 
     : settings.modes[TimerDirection.PORTRAIT_UP]; // Fallback to portrait up
+  const totalSeconds = currentMode.duration * 60;
 
   const themeColors = COLOR_MAP[currentMode.color] || COLOR_MAP.rose;
 
@@ -89,7 +91,7 @@ export const GravityTimer: React.FC<GravityTimerProps> = ({
     if (activeFaceState !== previousFaceStateRef.current) {
       if (activeFaceState === DeviceFaceState.FACE_DOWN) {
         setIsTimerRunning(true);
-        if (settings.soundEnabled && previousFaceStateRef.current === DeviceFaceState.FACE_UP) {
+        if (settings.soundEnabled) {
           playStartMelody(settings.volume);
         }
         if (previousFaceStateRef.current === DeviceFaceState.FACE_UP) {
@@ -114,32 +116,38 @@ export const GravityTimer: React.FC<GravityTimerProps> = ({
 
     if (isTimerRunning && timeLeft > 0) {
       intervalId = setInterval(() => {
-        setTimeLeft((prev) => {
-          const nextVal = prev - 1;
-          
-          // Optional subtle tick sound on odd seconds for productivity feedback
-          if (settings.soundEnabled && settings.tickingSoundEnabled && nextVal % 2 === 0) {
-            playTick(nextVal % 4 === 0 ? "tick" : "tock", settings.volume);
-          }
+        const nextVal = Math.max(0, timeLeft - 1);
+        setTimeLeft(nextVal);
 
-          if (nextVal <= 0) {
-            // Timer Finished!
-            if (settings.soundEnabled) {
-              playChime(settings.volume);
-            }
-            if (activeDirection) {
-              addHistoryLog(
-                settings.modes[activeDirection].duration,
-                settings.modes[activeDirection].label,
-                activeDirection,
-                true
-              );
-            }
-            setIsTimerRunning(false);
-            return 0;
+        if (nextVal <= 0) {
+          // Keep completion effects outside the state updater so StrictMode cannot replay them.
+          if (settings.soundEnabled) {
+            playEndMelody(settings.volume);
           }
-          return nextVal;
-        });
+          if (activeDirection) {
+            addHistoryLog(
+              settings.modes[activeDirection].duration,
+              settings.modes[activeDirection].label,
+              activeDirection,
+              true
+            );
+          }
+          setIsTimerRunning(false);
+          return;
+        }
+
+        if (
+          settings.soundEnabled &&
+          settings.tickingSoundEnabled &&
+          shouldPlayRegularReminder(
+            nextVal,
+            totalSeconds,
+            settings.tickingSoundInterval,
+          )
+        ) {
+          const elapsedSeconds = totalSeconds - nextVal;
+          playRegularReminder(elapsedSeconds, settings.volume);
+        }
       }, 1000);
     }
 
@@ -159,7 +167,6 @@ export const GravityTimer: React.FC<GravityTimerProps> = ({
     }
   };
 
-  const totalSeconds = (activeDirection ? settings.modes[activeDirection].duration : 25) * 60;
   const progressPercentage = totalSeconds > 0 ? (timeLeft / totalSeconds) * 100 : 0;
 
   // Circle properties for countdown progress ring
@@ -211,14 +218,16 @@ export const GravityTimer: React.FC<GravityTimerProps> = ({
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => setSettings(prev => ({ ...prev, tickingSoundEnabled: !prev.tickingSoundEnabled }))}
+            aria-label="计时中周期提示"
+            aria-pressed={settings.tickingSoundEnabled}
             className={`px-1.5 py-0.5 md:px-2 md:py-1 rounded text-[10px] font-mono border transition-all ${
               settings.tickingSoundEnabled
                 ? "bg-stone-900 text-stone-100 border-stone-900"
                 : "bg-transparent text-stone-400 border-stone-200 hover:text-stone-700"
             }`}
-            title="秒针滴答声反馈"
+            title="计时中周期提示音"
           >
-            滴答声: {settings.tickingSoundEnabled ? "开" : "关"}
+            周期提示: {settings.tickingSoundEnabled ? "开" : "关"}
           </button>
           
           <button

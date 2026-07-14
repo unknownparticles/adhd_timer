@@ -50,9 +50,10 @@ if (typeof window !== "undefined") {
 }
 
 /**
- * Synthesizes a subtle, mechanical clock "tick" or "tock"
+ * Plays the short neutral reminder used only while the timer is running.
+ * sequenceStep alternates the pitch without changing the reminder rhythm.
  */
-export function playTick(pitch: "tick" | "tock" = "tick", volumeMultiplier: number = 0.8) {
+export function playRegularReminder(sequenceStep: number = 0, volumeMultiplier: number = 0.8) {
   const ctx = getAudioContext();
   if (!ctx || ctx.state === "suspended") return;
 
@@ -62,22 +63,21 @@ export function playTick(pitch: "tick" | "tock" = "tick", volumeMultiplier: numb
   osc.connect(gainNode);
   gainNode.connect(ctx.destination);
 
-  // Fast decay for mechanical sound
-  const freq = pitch === "tick" ? 1200 : 900;
-  osc.frequency.setValueAtTime(freq, ctx.currentTime);
+  osc.type = "triangle";
+  const frequency = sequenceStep % 2 === 0 ? 760 : 880;
+  osc.frequency.setValueAtTime(frequency, ctx.currentTime);
   
-  // Boosted base gain from 0.02 to 0.12
-  gainNode.gain.setValueAtTime(0.12 * volumeMultiplier, ctx.currentTime);
-  gainNode.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.04);
+  gainNode.gain.setValueAtTime(0.08 * volumeMultiplier, ctx.currentTime);
+  gainNode.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.07);
 
   osc.start(ctx.currentTime);
-  osc.stop(ctx.currentTime + 0.05);
+  osc.stop(ctx.currentTime + 0.08);
 }
 
 /**
- * Synthesizes a beautiful 5-note pentatonic/uplifting music box melody (C5 -> E5 -> G5 -> A5 -> C6)
+ * Plays the longer five-note melody reserved for a completed timer.
  */
-export function playChime(volumeMultiplier: number = 0.8) {
+export function playEndMelody(volumeMultiplier: number = 0.8) {
   const ctx = getAudioContext();
   if (!ctx || ctx.state === "suspended") return;
 
@@ -285,4 +285,3 @@ export function playEasterEggSound(volumeMultiplier: number = 0.8) {
     osc.stop(noteTime + noteDuration + 0.05);
   });
 }
-

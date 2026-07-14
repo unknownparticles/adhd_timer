@@ -43,6 +43,7 @@ export interface AppSettings {
   vibrationEnabled: boolean;
   soundEnabled: boolean;
   tickingSoundEnabled: boolean;
+  tickingSoundInterval: number;
   autoSaveEnabled: boolean;
   modes: Record<TimerDirection, TimerModeConfig>;
   volume: number;

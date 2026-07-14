@@ -6,7 +6,8 @@ export const LOCAL_STORAGE_HISTORY_KEY = "gravity_timer_history_v1";
 export const DEFAULT_SETTINGS: AppSettings = {
   vibrationEnabled: true,
   soundEnabled: true,
-  tickingSoundEnabled: false,
+  tickingSoundEnabled: true,
+  tickingSoundInterval: 1,
   autoSaveEnabled: true,
   volume: 0.8,
   modes: {

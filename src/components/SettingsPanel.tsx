@@ -51,6 +51,15 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     }));
   };
 
+  const handleReminderIntervalChange = (interval: number) => {
+    if (!Number.isFinite(interval)) return;
+
+    setSettings((prev) => ({
+      ...prev,
+      tickingSoundInterval: Math.max(1, Math.round(interval)),
+    }));
+  };
+
   const renderIcon = (iconName: string, className = "w-4 h-4") => {
     switch (iconName) {
       case "Flame": return <Flame className={className} />;
@@ -162,10 +171,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
               <span className="text-[10px] sm:text-[11px] text-stone-700 font-bold">音效铃声反馈</span>
-              <span className="text-[8px] sm:text-[9px] text-stone-400">开启转换和计时结束提示旋律</span>
+              <span className="text-[8px] sm:text-[9px] text-stone-400">开始、周期和结束使用不同提示音</span>
             </div>
             <button
               onClick={() => setSettings(prev => ({ ...prev, soundEnabled: !prev.soundEnabled }))}
+              aria-label="音效铃声反馈"
+              aria-pressed={settings.soundEnabled}
               className={`w-8 h-4 rounded-full p-0.5 transition-all duration-300 ${
                 settings.soundEnabled ? "bg-stone-800 flex justify-end" : "bg-stone-200 flex justify-start"
               }`}
@@ -191,6 +202,43 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 className="w-full h-1 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-stone-800"
               />
             </div>
+          )}
+
+          {/* Regular reminder controls */}
+          <div className={`flex items-center justify-between ${settings.soundEnabled ? "" : "opacity-50"}`}>
+            <div className="flex flex-col">
+              <span className="text-[10px] sm:text-[11px] text-stone-700 font-bold">计时中周期提示</span>
+              <span className="text-[8px] sm:text-[9px] text-stone-400">播放区别于开始和结束旋律的轻提示音</span>
+            </div>
+            <button
+              onClick={() => setSettings(prev => ({ ...prev, tickingSoundEnabled: !prev.tickingSoundEnabled }))}
+              disabled={!settings.soundEnabled}
+              aria-label="计时中周期提示"
+              aria-pressed={settings.tickingSoundEnabled}
+              className={`w-8 h-4 rounded-full p-0.5 transition-all duration-300 ${
+                settings.tickingSoundEnabled ? "bg-stone-800 flex justify-end" : "bg-stone-200 flex justify-start"
+              }`}
+            >
+              <div className="w-3.5 h-3.5 rounded-full bg-white shadow-sm" />
+            </button>
+          </div>
+
+          {settings.soundEnabled && settings.tickingSoundEnabled && (
+            <label className="flex items-center justify-between gap-3 pl-2 py-1 border-l-2 border-stone-200 ml-1.5">
+              <span className="text-[9px] text-stone-500 font-medium">提示间隔</span>
+              <span className="flex items-center gap-1 text-[9px] text-stone-500">
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={settings.tickingSoundInterval ?? 1}
+                  onChange={(e) => handleReminderIntervalChange(Number(e.target.value))}
+                  aria-label="周期提示间隔秒数"
+                  className="w-14 h-7 rounded border border-stone-200 bg-white px-2 text-right font-mono text-stone-700 focus:border-stone-500 focus:outline-none"
+                />
+                秒
+              </span>
+            </label>
           )}
 
           {/* Vibration Toggle */}
