@@ -19,6 +19,7 @@ import { SettingsPanel } from "./components/SettingsPanel";
 import { classifyDeviceState } from "./utils/gravity";
 import { resumeAudio, playEasterEggSound } from "./utils/audio";
 import { triggerVibrate } from "./utils/vibration";
+import { AccelerationSample, HeavyShakeDetector } from "./utils/heavyShake";
 import { 
   Timer as TimerIcon, 
   BarChart3, 
@@ -26,6 +27,29 @@ import {
   Sparkles,
   Smartphone
 } from "lucide-react";
+
+function toAccelerationSample(
+  acceleration: DeviceMotionEventAcceleration | null,
+): AccelerationSample | null {
+  if (
+    acceleration?.x === null ||
+    acceleration?.x === undefined ||
+    acceleration.y === null ||
+    acceleration.y === undefined ||
+    acceleration.z === null ||
+    acceleration.z === undefined
+  ) {
+    return null;
+  }
+
+  const sample = {
+    x: acceleration.x,
+    y: acceleration.y,
+    z: acceleration.z,
+  };
+
+  return Object.values(sample).every(Number.isFinite) ? sample : null;
+}
 
 export default function App() {
   // 1. Core States
@@ -197,34 +221,22 @@ export default function App() {
     if (typeof window === "undefined") return;
     if (sensorData.usingSimulator) return;
 
-    let lastX = 0, lastY = 0, lastZ = 0;
-    let lastUpdate = 0;
-    const SHAKE_THRESHOLD = 26; // Acceleration variation threshold
+    const shakeDetector = new HeavyShakeDetector();
+    let lastProcessedAt = 0;
 
     const handleMotion = (e: DeviceMotionEvent) => {
-      const accel = e.acceleration || e.accelerationIncludingGravity;
-      if (!accel) return;
+      // Some browsers expose an acceleration object whose axes are all null.
+      const acceleration =
+        toAccelerationSample(e.acceleration) ??
+        toAccelerationSample(e.accelerationIncludingGravity);
+      if (!acceleration) return;
 
-      const x = accel.x ?? 0;
-      const y = accel.y ?? 0;
-      const z = accel.z ?? 0;
+      const now = Date.now();
+      if (now - lastProcessedAt < 80) return;
+      lastProcessedAt = now;
 
-      const curTime = Date.now();
-      if ((curTime - lastUpdate) > 100) {
-        const diffTime = curTime - lastUpdate;
-        lastUpdate = curTime;
-
-        const accelerationForce = Math.sqrt(x * x + y * y + z * z);
-        const delta = Math.abs(x + y + z - lastX - lastY - lastZ) / diffTime * 10000;
-        
-        // Trigger if either delta or magnitude is very high (heavy shake)
-        if (delta > SHAKE_THRESHOLD || accelerationForce > 26) {
-          triggerEasterEgg();
-        }
-
-        lastX = x;
-        lastY = y;
-        lastZ = z;
+      if (shakeDetector.addSample(acceleration, now)) {
+        triggerEasterEgg();
       }
     };
 
